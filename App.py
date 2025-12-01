@@ -91,26 +91,28 @@ if selected_season != "All" and "season" in df.columns:
 
 
 # -------------------
-# KPI CARDS
+# KPI CARDS (FIXED)
 # -------------------
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    total_injuries = filtered_df["Injury"].nunique() if "Injury" in filtered_df.columns else filtered_df["Date of Injury"].notna().sum()
+    total_injuries = filtered_df["Injury"].notna().sum()
     st.metric("Total Injuries (filtered)", total_injuries)
 
 with col2:
-    # Estimate total matches from the available match columns
-match_columns = [col for col in filtered_df.columns if "Match" in col and "Result" in col]
-total_matches = len(match_columns)
+    # Some datasets don’t have explicit match IDs — we approximate
+    match_columns = [col for col in filtered_df.columns if "Match" in col and "Result" in col]
+    total_matches = len(match_columns)
+    st.metric("Total Match-related Fields", total_matches)
 
 with col3:
-    avg_rating = filtered_df["rating"].mean()
-    st.metric("Avg Player Rating", f"{avg_rating:.2f}" if not np.isnan(avg_rating) else "N/A")
+    avg_rating_cols = [col for col in filtered_df.columns if "rating" in col.lower()]
+    avg_rating = filtered_df[avg_rating_cols].apply(pd.to_numeric, errors='coerce').stack().mean()
+    st.metric("Avg Player Rating", f"{avg_rating:.2f}" if not pd.isna(avg_rating) else "N/A")
 
 with col4:
-    mean_goal_diff = filtered_df["goal_diff"].mean()
-    st.metric("Avg Goal Difference", f"{mean_goal_diff:.2f}" if not np.isnan(mean_goal_diff) else "N/A")
+    st.metric("Dataset Rows (Injury Records)", len(filtered_df))
+
 
 
 st.markdown("---")
