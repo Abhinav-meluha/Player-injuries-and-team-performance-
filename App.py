@@ -12,7 +12,10 @@ st.set_page_config(
 )
 
 @st.cache_data
-def load_data(player_injuries_impact.csv):
+def load_data():
+    df = pd.read_csv("player_injuries_impact.csv")
+    return df
+
     # TODO: replace with your actual file name
     df = pd.read_csv("player_injuries_impact.csv")
 
