@@ -149,7 +149,13 @@ else:
 st.subheader("2. Player Performance Timeline – Before vs After Injury")
 
 if {"Name", "Match1_before_injury_Player_rating", "Match1_after_injury_Player_rating"}.issubset(df.columns):
-    avg_perf = df.groupby("Name")[["Match1_before_injury_Player_rating", "Match1_after_injury_Player_rating"]].mean().reset_index()
+ # Convert player ratings to numeric safely
+df["Match1_before_injury_Player_rating"] = pd.to_numeric(df["Match1_before_injury_Player_rating"], errors="coerce")
+df["Match1_after_injury_Player_rating"] = pd.to_numeric(df["Match1_after_injury_Player_rating"], errors="coerce")
+
+# Group by player and compute average ignoring NaNs
+avg_perf = df.groupby("Name", as_index=False)[["Match1_before_injury_Player_rating", "Match1_after_injury_Player_rating"]].mean(numeric_only=True)
+
 
     melted = avg_perf.melt(id_vars="Name", var_name="Phase", value_name="Rating")
 
