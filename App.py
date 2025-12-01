@@ -59,7 +59,7 @@ def load_data():
 
     return df
 
-df = load_data(player_injuries_impact.csv)
+df = load_data()
 
 st.title("⚽ FootLens Analytics – Player Injuries & Team Performance Dashboard")
 st.markdown(
