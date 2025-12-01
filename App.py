@@ -122,59 +122,23 @@ st.markdown("---")
 # =====================================================
 st.subheader("1. Top Injuries with Highest Team Performance Drop")
 
-# Example logic:
-# groupby injury / player: compare team goal_diff before vs during absence
-if {"injury_start", "injury_end", "club", "goal_diff"}.issubset(df.columns):
+if {"Name", "Team Name", "Match1_before_injury_Player_rating", "Match1_after_injury_Player_rating"}.issubset(df.columns):
+    perf_df = df[["Name", "Team Name", "Match1_before_injury_Player_rating", "Match1_after_injury_Player_rating"]].copy()
 
-    # For simplicity, approximate: use matches within X days before/after injury
-    window_days = 30
+    perf_df["Match1_before_injury_Player_rating"] = pd.to_numeric(perf_df["Match1_before_injury_Player_rating"], errors="coerce")
+    perf_df["Match1_after_injury_Player_rating"] = pd.to_numeric(perf_df["Match1_after_injury_Player_rating"], errors="coerce")
 
-    injury_rows = df.dropna(subset=["injury_start", "injury_end"]).copy()
-    records = []
+    perf_df["Performance Drop"] = perf_df["Match1_before_injury_Player_rating"] - perf_df["Match1_after_injury_Player_rating"]
+    perf_df = perf_df.dropna(subset=["Performance Drop"])
 
-    for idx, row in injury_rows.iterrows():
-        player = row["player_name"]
-        club = row["club"]
-        start = row["injury_start"]
-        end = row["injury_end"]
+    top_drops = perf_df.sort_values("Performance Drop", ascending=False).head(10)
 
-        club_matches = df[df["club"] == club]
-
-        before_mask = (club_matches["match_date"] >= (start - pd.Timedelta(days=window_days))) & \
-                      (club_matches["match_date"] < start)
-        during_mask = (club_matches["match_date"] >= start) & \
-                      (club_matches["match_date"] <= end)
-
-        before_perf = club_matches.loc[before_mask, "goal_diff"].mean()
-        during_perf = club_matches.loc[during_mask, "goal_diff"].mean()
-
-        if not (np.isnan(before_perf) or np.isnan(during_perf)):
-            perf_drop = before_perf - during_perf
-            records.append({
-                "player_name": player,
-                "club": club,
-                "injury_start": start,
-                "injury_end": end,
-                "before_perf": before_perf,
-                "during_perf": during_perf,
-                "performance_drop_index": perf_drop
-            })
-
-    impact_df = pd.DataFrame(records)
-    if not impact_df.empty:
-        top_impacts = impact_df.sort_values("performance_drop_index", ascending=False).head(10)
-
-        fig1 = px.bar(
-            top_impacts,
-            x="player_name",
-            y="performance_drop_index",
-            color="club",
-            hover_data=["before_perf", "during_perf", "injury_start", "injury_end"],
-            title="Top 10 Injuries by Performance Drop Index"
-        )
-        st.plotly_chart(fig1, use_container_width=True)
-    else:
-        st.info("Not enough data to compute performance drop index.")
+    fig1 = px.bar(top_drops,
+                  x="Name",
+                  y="Performance Drop",
+                  color="Team Name",
+                  title="Top 10 Players with Highest Performance Drop After Injury")
+    st.plotly_chart(fig1, use_container_width=True)
 else:
     st.warning("Required columns for performance drop analysis are missing.")
 
@@ -184,22 +148,15 @@ else:
 # =====================================================
 st.subheader("2. Player Performance Timeline – Before vs After Injury")
 
-if selected_player != "None":
-    player_df = filtered_df[filtered_df["player_name"] == selected_player].sort_values("match_date")
-    if not player_df.empty:
-        fig2 = px.line(
-            player_df,
-            x="match_date",
-            y="rating",
-            color="phase",
-            title=f"Rating Timeline for {selected_player}",
-            markers=True
-        )
-        st.plotly_chart(fig2, use_container_width=True)
-    else:
-        st.info("No matches for the selected player with current filters.")
+if {"Name", "Match1_before_injury_Player_rating", "Match1_after_injury_Player_rating"}.issubset(df.columns):
+    avg_perf = df.groupby("Name")[["Match1_before_injury_Player_rating", "Match1_after_injury_Player_rating"]].mean().reset_index()
+
+    melted = avg_perf.melt(id_vars="Name", var_name="Phase", value_name="Rating")
+
+    fig2 = px.bar(melted, x="Name", y="Rating", color="Phase", title="Average Rating Before vs After Injury")
+    st.plotly_chart(fig2, use_container_width=True)
 else:
-    st.info("Select a player in the sidebar to view their performance timeline.")
+    st.warning("Required columns for before/after comparison are missing.")
 
 
 # =====================================================
@@ -207,25 +164,18 @@ else:
 # =====================================================
 st.subheader("3. Injury Frequency by Month and Club (Heatmap)")
 
-if "injury_start" in df.columns and "club" in df.columns:
-    inj = df.dropna(subset=["injury_start"]).copy()
-    inj["month"] = inj["injury_start"].dt.to_period("M").astype(str)
+if {"Date of Injury", "Team Name"}.issubset(df.columns):
+    df["Date of Injury"] = pd.to_datetime(df["Date of Injury"], errors="coerce")
+    df["Month"] = df["Date of Injury"].dt.strftime("%b")
 
-    heat_df = inj.groupby(["club", "month"]).size().reset_index(name="injury_count")
-    if not heat_df.empty:
-        fig3 = px.density_heatmap(
-            heat_df,
-            x="month",
-            y="club",
-            z="injury_count",
-            color_continuous_scale="Reds",
-            title="Injury Count Heatmap (Month x Club)"
-        )
-        st.plotly_chart(fig3, use_container_width=True)
-    else:
-        st.info("No injury data available for heatmap.")
+    heat_df = df.groupby(["Team Name", "Month"]).size().reset_index(name="Injury Count")
+
+    fig3 = px.density_heatmap(heat_df, x="Month", y="Team Name", z="Injury Count",
+                              color_continuous_scale="Reds",
+                              title="Injury Frequency by Month and Team")
+    st.plotly_chart(fig3, use_container_width=True)
 else:
-    st.warning("Columns 'injury_start' or 'club' missing.")
+    st.warning("Columns 'Date of Injury' or 'Team Name' are missing.")
 
 
 # =====================================================
@@ -233,29 +183,18 @@ else:
 # =====================================================
 st.subheader("4. Player Age vs Performance Drop Index")
 
-if "age" in df.columns and not df["age"].isna().all():
-    if 'performance_drop_index' in locals() or 'impact_df' in locals():
-        if 'impact_df' in locals() and not impact_df.empty:
-            age_merge = impact_df.merge(
-                df[["player_name", "age"]].drop_duplicates(),
-                on="player_name",
-                how="left"
-            )
-            fig4 = px.scatter(
-                age_merge,
-                x="age",
-                y="performance_drop_index",
-                color="club",
-                hover_data=["player_name"],
-                title="Age vs Performance Drop Index"
-            )
-            st.plotly_chart(fig4, use_container_width=True)
-        else:
-            st.info("Performance impact data not available yet for scatter plot.")
-    else:
-        st.info("Run the performance impact calculation above first.")
+st.subheader("4. Player Age vs Performance Drop Index")
+
+if {"Age", "Match1_before_injury_Player_rating", "Match1_after_injury_Player_rating"}.issubset(df.columns):
+    df["Match1_before_injury_Player_rating"] = pd.to_numeric(df["Match1_before_injury_Player_rating"], errors="coerce")
+    df["Match1_after_injury_Player_rating"] = pd.to_numeric(df["Match1_after_injury_Player_rating"], errors="coerce")
+    df["Performance Drop"] = df["Match1_before_injury_Player_rating"] - df["Match1_after_injury_Player_rating"]
+
+    fig4 = px.scatter(df, x="Age", y="Performance Drop", color="Team Name", hover_data=["Name"],
+                      title="Player Age vs Performance Drop After Injury")
+    st.plotly_chart(fig4, use_container_width=True)
 else:
-    st.warning("Age column missing or empty; cannot plot age vs performance drop.")
+    st.warning("Age or rating columns missing; cannot plot age vs performance drop.")
 
 
 # =====================================================
@@ -263,25 +202,14 @@ else:
 # =====================================================
 st.subheader("5. Comeback Leaderboard – Rating Improvement After Injury")
 
-if {"player_name", "rating", "phase"}.issubset(df.columns):
-    # average rating per player in each phase
-    phase_stats = df.groupby(["player_name", "club", "phase"])["rating"].mean().reset_index()
+if {"Name", "Team Name", "Match1_before_injury_Player_rating", "Match1_after_injury_Player_rating"}.issubset(df.columns):
+    comeback = df.copy()
+    comeback["Match1_before_injury_Player_rating"] = pd.to_numeric(comeback["Match1_before_injury_Player_rating"], errors="coerce")
+    comeback["Match1_after_injury_Player_rating"] = pd.to_numeric(comeback["Match1_after_injury_Player_rating"], errors="coerce")
+    comeback["Improvement"] = comeback["Match1_after_injury_Player_rating"] - comeback["Match1_before_injury_Player_rating"]
 
-    before = phase_stats[phase_stats["phase"] == "Before injury"][["player_name", "club", "rating"]]
-    after = phase_stats[phase_stats["phase"] == "After return"][["player_name", "rating"]]
-
-    before = before.rename(columns={"rating": "rating_before"})
-    after = after.rename(columns={"rating": "rating_after"})
-
-    merged = before.merge(after, on="player_name", how="inner")
-    merged["rating_change"] = merged["rating_after"] - merged["rating_before"]
-
-    comeback = merged.sort_values("rating_change", ascending=False).head(10)
-
-    st.dataframe(comeback.style.format({
-        "rating_before": "{:.2f}",
-        "rating_after": "{:.2f}",
-        "rating_change": "{:.2f}"
-    }))
+    leaderboard = comeback.sort_values("Improvement", ascending=False)[["Name", "Team Name", "Improvement"]].head(10)
+    st.dataframe(leaderboard.style.format({"Improvement": "{:.2f}"}))
 else:
     st.warning("Required columns for comeback leaderboard are missing.")
+
