@@ -12,9 +12,9 @@ st.set_page_config(
 )
 
 @st.cache_data
-def load_data():
+def load_data(player_injuries_impact.csv):
     # TODO: replace with your actual file name
-    df = pd.read_csv("player_injuries_team_performance.csv")
+    df = pd.read_csv("player_injuries_impact.csv")
 
     # ---- BASIC CLEANING ----
     date_cols = ["match_date", "injury_start", "injury_end"]
@@ -56,7 +56,7 @@ def load_data():
 
     return df
 
-df = load_data()
+df = load_data(player_injuries_impact.csv)
 
 st.title("⚽ FootLens Analytics – Player Injuries & Team Performance Dashboard")
 st.markdown(
