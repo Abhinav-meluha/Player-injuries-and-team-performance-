@@ -74,8 +74,8 @@ match outcomes, and player comebacks.
 # -------------------
 st.sidebar.header("Filters")
 
-clubs = sorted(df["club"].dropna().unique())
-players = sorted(df["player_name"].dropna().unique())
+clubs = sorted(df["Team_Name"].dropna().unique())
+players = sorted(df["Name"].dropna().unique())
 seasons = sorted(df["season"].dropna().unique()) if "season" in df.columns else []
 
 selected_club = st.sidebar.selectbox("Select Club", options=["All"] + clubs)
