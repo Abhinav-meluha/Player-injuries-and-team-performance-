@@ -96,7 +96,7 @@ if selected_season != "All" and "season" in df.columns:
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    total_injuries = filtered_df["injury_id"].nunique() if "injury_id" in filtered_df.columns else filtered_df["injury_start"].notna().sum()
+    total_injuries = filtered_df["Injury"].nunique() if "Injury" in filtered_df.columns else filtered_df["Date of Injury"].notna().sum()
     st.metric("Total Injuries (filtered)", total_injuries)
 
 with col2:
