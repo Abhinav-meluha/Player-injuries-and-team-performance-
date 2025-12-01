@@ -100,8 +100,9 @@ with col1:
     st.metric("Total Injuries (filtered)", total_injuries)
 
 with col2:
-    total_matches = filtered_df["match_id"].nunique() if "match_id" in filtered_df.columns else filtered_df["match_date"].nunique()
-    st.metric("Total Matches", total_matches)
+    # Estimate total matches from the available match columns
+match_columns = [col for col in filtered_df.columns if "Match" in col and "Result" in col]
+total_matches = len(match_columns)
 
 with col3:
     avg_rating = filtered_df["rating"].mean()
